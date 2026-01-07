@@ -10,6 +10,6 @@ class Next7DaysPage extends StatefulWidget {
 class _Next7DaysPageState extends State<Next7DaysPage> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Scaffold(appBar: AppBar());
   }
 }

@@ -6,6 +6,7 @@ import 'package:weather_api_app/components/highlight_weather_widget.dart';
 import 'package:weather_api_app/models/weather.dart';
 import 'package:weather_api_app/pages/choose_location_page.dart';
 import 'package:weather_api_app/pages/find_location_page.dart';
+import 'package:weather_api_app/pages/next_7_days_page.dart';
 import 'package:weather_api_app/providers/location_provider.dart';
 import 'package:weather_api_app/services/weather_code_parser.dart';
 import 'package:weather_api_app/services/weather_service.dart';
@@ -18,7 +19,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  //add always 1 day because hourly doesnt show units of today
   DateTime selecteDate = DateTime.now();
   late Future<Weather> weatherFuture;
   late ScrollController _todayScrollController;
@@ -101,7 +101,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
 
-        // If no specific hour found, scroll to first item for tomorrow tab
         if (targetHourIndex == -1 && !isToday) {
           targetHourIndex = 0;
         }
@@ -128,6 +127,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _tomorrowScrollController = ScrollController();
     _initializeWeather();
     _goToRightTab();
+    _addTabListerer();
   }
 
   @override
@@ -529,5 +529,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     } else if (selecteDate.day == DateTime.now().add(2.days).day) {
       _tabController.animateTo(1);
     }
+  }
+
+  void _addTabListerer() {
+    _tabController.addListener(() {
+      if (_tabController.index == 2) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => Next7DaysPage()),
+        );
+      }
+    });
   }
 }
