@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:weather_api_app/components/empty_location.dart';
 import 'package:weather_api_app/components/highlight_weather_widget.dart';
@@ -18,9 +17,13 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  //add always 1 day because hourly doesnt show units of today
   DateTime selecteDate = DateTime.now();
   late Future<Weather> weatherFuture;
+  late ScrollController _todayScrollController;
+  late ScrollController _tomorrowScrollController;
+  late TabController _tabController;
 
   void _initializeWeather() {
     final controller = Get.find<LocationProvider>();
@@ -33,10 +36,106 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  int _getSelectedDayIndex(Weather weather) {
+    for (int i = 0; i < weather.daily.time.length; i++) {
+      DateTime dailyDate = DateTime.parse(weather.daily.time[i]);
+      if (dailyDate.year == selecteDate.year &&
+          dailyDate.month == selecteDate.month &&
+          dailyDate.day == selecteDate.day) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  List<int> _getTodayHourlyIndices(Weather weather) {
+    List<int> todayIndices = [];
+    DateTime today = DateTime.now().add(1.days);
+
+    for (int i = 0; i < weather.hourly.time.length; i++) {
+      DateTime hourTime = DateTime.parse(weather.hourly.time[i]);
+      if (hourTime.year == today.year &&
+          hourTime.month == today.month &&
+          hourTime.day == today.day) {
+        todayIndices.add(i);
+      }
+    }
+    return todayIndices;
+  }
+
+  List<int> _getTomorrowHourlyIndices(Weather weather) {
+    List<int> tomorrowIndices = [];
+    DateTime tomorrow = DateTime.now().add(Duration(days: 2));
+
+    for (int i = 0; i < weather.hourly.time.length; i++) {
+      DateTime hourTime = DateTime.parse(weather.hourly.time[i]);
+      if (hourTime.year == tomorrow.year &&
+          hourTime.month == tomorrow.month &&
+          hourTime.day == tomorrow.day) {
+        tomorrowIndices.add(i);
+      }
+    }
+    return tomorrowIndices;
+  }
+
+  void _scrollToSelectedHour(
+    Weather weather,
+    List<int> hourlyIndices,
+    ScrollController scrollController,
+    bool isToday,
+  ) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scrollController.hasClients && hourlyIndices.isNotEmpty) {
+        int targetHourIndex = -1;
+
+        for (int i = 0; i < hourlyIndices.length; i++) {
+          int actualIndex = hourlyIndices[i];
+          DateTime itemTime = DateTime.parse(weather.hourly.time[actualIndex]);
+
+          if (isToday && itemTime.hour == DateTime.now().hour) {
+            targetHourIndex = i;
+            break;
+          } else if (!isToday && itemTime.hour == selecteDate.hour) {
+            targetHourIndex = i;
+            break;
+          }
+        }
+
+        // If no specific hour found, scroll to first item for tomorrow tab
+        if (targetHourIndex == -1 && !isToday) {
+          targetHourIndex = 0;
+        }
+
+        if (targetHourIndex != -1) {
+          double itemWidth = 104.0;
+          double scrollPosition = targetHourIndex * itemWidth;
+
+          scrollController.animateTo(
+            scrollPosition,
+            duration: Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        }
+      }
+    });
+  }
+
   @override
   void initState() {
+    _tabController = TabController(length: 3, vsync: this);
     super.initState();
+    _todayScrollController = ScrollController();
+    _tomorrowScrollController = ScrollController();
     _initializeWeather();
+    _goToRightTab();
+  }
+
+  @override
+  void dispose() {
+    _todayScrollController.dispose();
+    _tomorrowScrollController.dispose();
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
@@ -90,11 +189,32 @@ class _HomePageState extends State<HomePage> {
                       return Center(child: Text("no data"));
                     }
                     final Weather weather = snapshot.data!;
+                    int selectedDayIndex = _getSelectedDayIndex(weather);
+                    List<int> todayHourlyIndices = _getTodayHourlyIndices(
+                      weather,
+                    );
+                    List<int> tomorrowHourlyIndices = _getTomorrowHourlyIndices(
+                      weather,
+                    );
+
+                    _scrollToSelectedHour(
+                      weather,
+                      todayHourlyIndices,
+                      _todayScrollController,
+                      true,
+                    );
+                    _scrollToSelectedHour(
+                      weather,
+                      tomorrowHourlyIndices,
+                      _tomorrowScrollController,
+                      false,
+                    );
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       spacing: 16,
                       children: [
-                        Text(DateFormat("EEEE d MMMM").format(selecteDate)),
+                        Text(selectedDateText()),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -102,7 +222,7 @@ class _HomePageState extends State<HomePage> {
                               width: Get.width / 2 - 50,
                               child: Image.asset(
                                 WeatherCodeParser.getImageFromCode(
-                                  weather.daily.weathercode.first,
+                                  weather.daily.weathercode[selectedDayIndex],
                                   weather.utc_offset_seconds,
                                 ),
                               ),
@@ -114,7 +234,7 @@ class _HomePageState extends State<HomePage> {
                                     Padding(
                                       padding: const EdgeInsets.all(12.0),
                                       child: Text(
-                                        "${weather.daily.temperature_2m_max.first}",
+                                        "${weather.daily.temperature_2m_max[selectedDayIndex]}",
                                         style: TextStyle(
                                           fontSize: 48,
                                           fontWeight: FontWeight.bold,
@@ -133,7 +253,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                                 Text(
                                   WeatherCodeParser.getDescriptionFromCode(
-                                    weather.daily.weathercode.first,
+                                    weather.daily.weathercode[selectedDayIndex],
                                   ),
                                   style: TextStyle(fontSize: 24),
                                 ),
@@ -148,54 +268,226 @@ class _HomePageState extends State<HomePage> {
                               imagePath: "assets/images/umbrella.png",
                               title: "Regenval",
                               valueAndType:
-                                  "${weather.daily.precipitation_sum.first} ${weather.daily_units.precipitation_sum}",
+                                  "${weather.daily.precipitation_sum[selectedDayIndex]} ${weather.daily_units.precipitation_sum}",
                             ),
                             HighlightWeatherWidget(
                               imagePath: "assets/images/wind.png",
                               title: "Wind",
                               valueAndType:
-                                  "${weather.daily.wind_speed_10m_max.first} ${weather.daily_units.wind_speed_10m_max}",
+                                  "${weather.daily.wind_speed_10m_max[selectedDayIndex]} ${weather.daily_units.wind_speed_10m_max}",
                             ),
                             HighlightWeatherWidget(
                               imagePath: "assets/images/huminaty.png",
                               title: "Vochtigheid",
                               valueAndType:
-                                  "${weather.daily.relative_humidity_2m_mean.first} ${weather.daily_units.relative_humidity_2m_mean}",
+                                  "${weather.daily.relative_humidity_2m_mean[selectedDayIndex]} ${weather.daily_units.relative_humidity_2m_mean}",
                             ),
                           ],
                         ),
                         Expanded(
-                          child: DefaultTabController(
-                            length: 3,
-                            child: Column(
-                              children: [
-                                TabBar(
-                                  labelStyle: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  unselectedLabelStyle: TextStyle(
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                  indicatorColor: Colors.white,
-                                  labelColor: Colors.white,
-                                  dividerColor: Colors.white,
-                                  tabs: [
-                                    Tab(text: "Vandaag"),
-                                    Tab(text: "Morgen"),
-                                    Tab(text: "Komende 7 dagen"),
+                          child: Column(
+                            children: [
+                              TabBar(
+                                controller: _tabController,
+                                labelStyle: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                unselectedLabelStyle: TextStyle(
+                                  fontWeight: FontWeight.normal,
+                                ),
+                                indicatorColor: Colors.white,
+                                labelColor: Colors.white,
+                                dividerColor: Colors.white,
+                                tabs: [
+                                  Tab(text: "Vandaag"),
+                                  Tab(text: "Morgen"),
+                                  Tab(text: "Komende 7 dagen"),
+                                ],
+                              ),
+                              Expanded(
+                                child: TabBarView(
+                                  controller: _tabController,
+                                  children: [
+                                    ListView.builder(
+                                      controller: _todayScrollController,
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: todayHourlyIndices.length,
+                                      itemBuilder: (context, index) {
+                                        int actualIndex =
+                                            todayHourlyIndices[index];
+                                        bool isNow =
+                                            DateTime.now().hour ==
+                                            DateTime.parse(
+                                              weather.hourly.time[actualIndex],
+                                            ).hour;
+                                        bool isSelectedTime =
+                                            DateTime.parse(
+                                              weather.hourly.time[actualIndex],
+                                            ).hour ==
+                                            selecteDate.hour;
+                                        return Row(
+                                          children: [
+                                            SizedBox(width: 12),
+                                            InkWell(
+                                              onTap: () {
+                                                setState(() {
+                                                  selecteDate = DateTime.parse(
+                                                    weather
+                                                        .hourly
+                                                        .time[actualIndex],
+                                                  );
+                                                });
+                                              },
+                                              child: Container(
+                                                height: 160,
+                                                width: 80,
+                                                decoration: BoxDecoration(
+                                                  color: isSelectedTime
+                                                      ? Colors.black.withAlpha(
+                                                          190,
+                                                        )
+                                                      : Colors.black.withAlpha(
+                                                          64,
+                                                        ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Padding(
+                                                  padding: const EdgeInsets.all(
+                                                    8.0,
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .center,
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceEvenly,
+                                                    children: [
+                                                      Text(
+                                                        isNow
+                                                            ? "nu"
+                                                            : DateFormat(
+                                                                "HH:mm",
+                                                              ).format(
+                                                                DateTime.parse(
+                                                                  weather
+                                                                      .hourly
+                                                                      .time[actualIndex],
+                                                                ),
+                                                              ),
+                                                      ),
+                                                      Image.asset(
+                                                        WeatherCodeParser.getImageFromCode(
+                                                          weather
+                                                              .hourly
+                                                              .weathercode[actualIndex],
+                                                          weather
+                                                              .utc_offset_seconds,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        "${weather.hourly.temperature_2m[actualIndex].toInt()}°",
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 12),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                    ListView.builder(
+                                      controller: _tomorrowScrollController,
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: tomorrowHourlyIndices.length,
+                                      itemBuilder: (context, index) {
+                                        int actualIndex =
+                                            tomorrowHourlyIndices[index];
+                                        bool isSelectedTime =
+                                            DateTime.parse(
+                                              weather.hourly.time[actualIndex],
+                                            ).hour ==
+                                            selecteDate.hour;
+                                        return Row(
+                                          children: [
+                                            SizedBox(width: 12),
+                                            InkWell(
+                                              onTap: () {
+                                                setState(() {
+                                                  selecteDate = DateTime.parse(
+                                                    weather
+                                                        .hourly
+                                                        .time[actualIndex],
+                                                  );
+                                                });
+                                              },
+                                              child: Container(
+                                                height: 160,
+                                                width: 80,
+                                                decoration: BoxDecoration(
+                                                  color: isSelectedTime
+                                                      ? Colors.black.withAlpha(
+                                                          190,
+                                                        )
+                                                      : Colors.black.withAlpha(
+                                                          64,
+                                                        ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Padding(
+                                                  padding: const EdgeInsets.all(
+                                                    8.0,
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .center,
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceEvenly,
+                                                    children: [
+                                                      Text(
+                                                        DateFormat(
+                                                          "HH:mm",
+                                                        ).format(
+                                                          DateTime.parse(
+                                                            weather
+                                                                .hourly
+                                                                .time[actualIndex],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      Image.asset(
+                                                        WeatherCodeParser.getImageFromCode(
+                                                          weather
+                                                              .hourly
+                                                              .weathercode[actualIndex],
+                                                          weather
+                                                              .utc_offset_seconds,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        "${weather.hourly.temperature_2m[actualIndex].toInt()}°",
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 12),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                    Text("Komende 7 dagen"),
                                   ],
                                 ),
-                                Expanded(
-                                  child: TabBarView(
-                                    children: [
-                                      Text("vandaag"),
-                                      Text("morgen"),
-                                      Text("Komende 7 dagen"),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -208,5 +500,29 @@ class _HomePageState extends State<HomePage> {
         );
       }),
     );
+  }
+
+  String selectedDateText() {
+    if (selecteDate.hour == DateTime.now().hour) {
+      return DateFormat("EEEE d MMMM").format(selecteDate);
+    }
+    if (selecteDate.isAfter(DateTime.now().add(Duration(days: 2)))) {
+      return "Morgen om ${selecteDate.hour.toString().padLeft(2, "0")}:${selecteDate.minute.toString().padLeft(2, "0")}";
+    }
+    if (selecteDate.isBefore(DateTime.now().add(Duration(days: 1)))) {
+      return "Zojuist om ${selecteDate.hour.toString().padLeft(2, "0")}:${selecteDate.minute.toString().padLeft(2, "0")} uur";
+    }
+    if (selecteDate.isAfter(DateTime.now().add(Duration(days: 1)))) {
+      return "Straks om ${selecteDate.hour.toString().padLeft(2, "0")}:${selecteDate.minute.toString().padLeft(2, "0")} uur";
+    }
+    return DateFormat("EEEE d MMMM").format(selecteDate);
+  }
+
+  void _goToRightTab() {
+    if (selecteDate.day == DateTime.now().add(1.days).day) {
+      _tabController.animateTo(0);
+    } else if (selecteDate.day == DateTime.now().add(2.days).day) {
+      _tabController.animateTo(1);
+    }
   }
 }

@@ -8,7 +8,7 @@ class GeoCodingService {
     final List<DataLocation> locations = [];
     final response = await http.get(
       Uri.parse(
-        "https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=5&language=nl ",
+        "https://geocoding-api.open-meteo.com/v1/search?name=$query&count=5&language=nl ",
       ),
     );
     final data = await jsonDecode(response.body);
