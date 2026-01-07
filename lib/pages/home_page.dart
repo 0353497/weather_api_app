@@ -175,7 +175,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             spacing: 8,
             children: [
               Text(
-                "${location.name ?? "unkown"}, \n${location.country}",
+                location.isCurrentLocation
+                    ? "Current\nLocation"
+                    : "${location.name ?? "unkown"}, \n${location.country}",
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.w500),
               ),
               Expanded(
@@ -261,28 +263,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
-                        Row(
-                          spacing: 16,
-                          children: [
-                            HighlightWeatherWidget(
-                              imagePath: "assets/images/umbrella.png",
-                              title: "Regenval",
-                              valueAndType:
-                                  "${weather.daily.precipitation_sum[selectedDayIndex]} ${weather.daily_units.precipitation_sum}",
-                            ),
-                            HighlightWeatherWidget(
-                              imagePath: "assets/images/wind.png",
-                              title: "Wind",
-                              valueAndType:
-                                  "${weather.daily.wind_speed_10m_max[selectedDayIndex]} ${weather.daily_units.wind_speed_10m_max}",
-                            ),
-                            HighlightWeatherWidget(
-                              imagePath: "assets/images/huminaty.png",
-                              title: "Vochtigheid",
-                              valueAndType:
-                                  "${weather.daily.relative_humidity_2m_mean[selectedDayIndex]} ${weather.daily_units.relative_humidity_2m_mean}",
-                            ),
-                          ],
+                        Hero(
+                          tag: "next7transfer",
+                          child: Row(
+                            spacing: 16,
+                            children: [
+                              HighlightWeatherWidget(
+                                imagePath: "assets/images/umbrella.png",
+                                title: "Regenval",
+                                valueAndType:
+                                    "${weather.daily.precipitation_sum[selectedDayIndex]} ${weather.daily_units.precipitation_sum}",
+                              ),
+                              HighlightWeatherWidget(
+                                imagePath: "assets/images/wind.png",
+                                title: "Wind",
+                                valueAndType:
+                                    "${weather.daily.wind_speed_10m_max[selectedDayIndex]} ${weather.daily_units.wind_speed_10m_max}",
+                              ),
+                              HighlightWeatherWidget(
+                                imagePath: "assets/images/huminaty.png",
+                                title: "Vochtigheid",
+                                valueAndType:
+                                    "${weather.daily.relative_humidity_2m_mean[selectedDayIndex]} ${weather.daily_units.relative_humidity_2m_mean}",
+                              ),
+                            ],
+                          ),
                         ),
                         Expanded(
                           child: Column(

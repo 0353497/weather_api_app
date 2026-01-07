@@ -167,26 +167,60 @@ class _FindLocationPageState extends State<FindLocationPage> {
             ),
           ),
           onPressed: () async {
-            final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-            if (!serviceEnabled) {
-              return Future.error("location not allowed");
-            }
-            LocationPermission permission = await Geolocator.checkPermission();
-            if (permission == LocationPermission.denied) {
-              permission = await Geolocator.requestPermission();
+            try {
+              final serviceEnabled =
+                  await Geolocator.isLocationServiceEnabled();
+              if (!serviceEnabled) {
+                throw Exception("Location services are disabled");
+              }
+
+              LocationPermission permission =
+                  await Geolocator.checkPermission();
               if (permission == LocationPermission.denied) {
-                return Future.error('Location permissions are denied');
+                permission = await Geolocator.requestPermission();
+                if (permission == LocationPermission.denied) {
+                  throw Exception('Location permissions are denied');
+                }
+              }
+
+              if (permission == LocationPermission.deniedForever) {
+                throw Exception(
+                  'Location permissions are permanently denied, we cannot request permissions.',
+                );
+              }
+
+              final position = await Geolocator.getCurrentPosition();
+              final currentLocation = DataLocation(
+                isCurrentLocation: true,
+                name: "Current Location",
+                latitude: position.latitude,
+                longitude: position.longitude,
+                country_code: "",
+                country: "",
+                admin1: "",
+              );
+
+              if (!_prefsReady) return;
+
+              await prefs.setString(
+                "lastLocation",
+                jsonEncode(currentLocation.toJson()),
+              );
+              final controller = Get.find<LocationProvider>();
+              controller.setCurrentLocation(currentLocation);
+              if (mounted) Navigator.of(context).pop();
+            } catch (e) {
+              print("Error getting current location: $e");
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      "Could not get current location: ${e.toString()}",
+                    ),
+                  ),
+                );
               }
             }
-
-            if (permission == LocationPermission.deniedForever) {
-              return Future.error(
-                'Location permissions are permanently denied, we cannot request permissions.',
-              );
-            }
-
-            final position = await Geolocator.getCurrentPosition();
-            print("position $position");
           },
           icon: Image.asset("assets/images/near_me.png", width: 32),
         ),
