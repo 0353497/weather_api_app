@@ -8,6 +8,7 @@ import 'package:weather_api_app/pages/choose_location_page.dart';
 import 'package:weather_api_app/pages/find_location_page.dart';
 import 'package:weather_api_app/pages/next_7_days_page.dart';
 import 'package:weather_api_app/providers/location_provider.dart';
+import 'package:weather_api_app/providers/theme_provider.dart';
 import 'package:weather_api_app/services/weather_code_parser.dart';
 import 'package:weather_api_app/services/weather_service.dart';
 
@@ -120,6 +121,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
+  void _updateTheme(Weather weather) {
+    // Defer theme update to after build phase completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final themeProvider = Get.find<ThemeProvider>();
+
+      // Find the hourly index for selected date
+      int? selectedHourIndex;
+      for (int i = 0; i < weather.hourly.time.length; i++) {
+        DateTime hourTime = DateTime.parse(weather.hourly.time[i]);
+        if (hourTime.year == selecteDate.year &&
+            hourTime.month == selecteDate.month &&
+            hourTime.day == selecteDate.day &&
+            hourTime.hour == selecteDate.hour) {
+          selectedHourIndex = i;
+          break;
+        }
+      }
+
+      if (selectedHourIndex == null) return;
+
+      int weatherCode = weather.hourly.weathercode[selectedHourIndex];
+      int selectedHour = selecteDate.hour;
+
+      bool isDay = selectedHour >= 6 && selectedHour < 20;
+
+      bool isCloudy = weatherCode >= 2;
+
+      ThemeType newTheme;
+      if (isDay && !isCloudy) {
+        newTheme = ThemeType.brightDay;
+      } else if (isDay && isCloudy) {
+        newTheme = ThemeType.cloudyDay;
+      } else if (!isDay && !isCloudy) {
+        newTheme = ThemeType.brightNight;
+      } else {
+        newTheme = ThemeType.cloudyNight;
+      }
+
+      themeProvider.setTheme(newTheme);
+    });
+  }
+
   @override
   void initState() {
     _tabController = TabController(length: 3, vsync: this);
@@ -193,6 +236,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     }
                     final Weather weather = snapshot.data!;
                     _cachedWeather = weather;
+                    _updateTheme(weather);
                     int selectedDayIndex = _getSelectedDayIndex(weather);
                     List<int> todayHourlyIndices = _getTodayHourlyIndices(
                       weather,
@@ -364,6 +408,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                                         .hourly
                                                         .time[actualIndex],
                                                   );
+                                                  _updateTheme(weather);
                                                 });
                                               },
                                               child: Container(
@@ -457,6 +502,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           onTap: () {
             setState(() {
               selecteDate = DateTime.parse(weather.hourly.time[actualIndex]);
+              _updateTheme(weather);
             });
           },
           child: Container(

@@ -1,16 +1,19 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:get/instance_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather_api_app/models/data_location.dart';
 import 'package:weather_api_app/pages/home_page.dart';
 import 'package:weather_api_app/providers/location_provider.dart';
+import 'package:weather_api_app/providers/theme_provider.dart';
 
 void main() {
   runApp(const MainApp());
   Get.put<LocationProvider>(LocationProvider());
+  Get.put<ThemeProvider>(ThemeProvider());
 }
 
 class MainApp extends StatefulWidget {
@@ -30,21 +33,11 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      theme: ThemeData(
-        scaffoldBackgroundColor: Color(0xff599ADF),
-        colorScheme: ColorScheme.light(
-          primary: Color(0xff599ADF),
-          surface: Color(0xff599ADF),
-          onSurface: Colors.white,
-          onPrimary: Colors.white,
-        ),
-        textTheme: TextTheme().apply(
-          bodyColor: Colors.white,
-          displayColor: Colors.white,
-        ),
+    return Obx(
+      () => GetMaterialApp(
+        theme: (Get.find<ThemeProvider>()).currentTheme,
+        home: HomePage(),
       ),
-      home: HomePage(),
     );
   }
 
