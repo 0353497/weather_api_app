@@ -7,7 +7,7 @@ part 'small_weather.g.dart';
 @JsonSerializable()
 class SmallWeather {
   String get imagepath =>
-      WeatherCodeParser.getImageFromCode(weathercode, utc_offset_seconds);
+      WeatherCodeParser.getImageFromCode(weathercode, dateTime: DateTime.now());
   final int weathercode;
   final double temperature_2m_max;
   final int utc_offset_seconds;

@@ -1,9 +1,10 @@
 class WeatherCodeParser {
   // ignore: non_constant_identifier_names
-  static String getImageFromCode(int weathercode, int utc_offset_seconds) {
-    final now = DateTime.now().toUtc();
-    final localTime = now.add(Duration(seconds: utc_offset_seconds));
-    final hour = localTime.hour;
+  static String getImageFromCode(
+    int weathercode, {
+    required DateTime dateTime,
+  }) {
+    final hour = dateTime.hour;
     final isDaytime = hour >= 6 && hour < 20;
 
     // WMO Weather interpretation codes

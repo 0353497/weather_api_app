@@ -106,7 +106,7 @@ class _Next7DaysPageState extends State<Next7DaysPage> {
               height: 60,
               WeatherCodeParser.getImageFromCode(
                 widget.weather.daily.weathercode[index],
-                widget.weather.utc_offset_seconds,
+                dateTime: DateTime.parse(widget.weather.daily.time[index]),
               ),
             ),
           ],
@@ -140,7 +140,7 @@ class _Next7DaysPageState extends State<Next7DaysPage> {
                   height: 60,
                   WeatherCodeParser.getImageFromCode(
                     widget.weather.daily.weathercode[index],
-                    widget.weather.utc_offset_seconds,
+                    dateTime: DateTime.parse(widget.weather.daily.time[index]),
                   ),
                 ),
               ],
@@ -218,7 +218,9 @@ class Main7DaysHighlightWidget extends StatelessWidget {
                       height: 60,
                       WeatherCodeParser.getImageFromCode(
                         widget.weather.daily.weathercode.first,
-                        widget.weather.utc_offset_seconds,
+                        dateTime: DateTime.parse(
+                          widget.weather.daily.time.first,
+                        ),
                       ),
                     ),
                   ],
