@@ -529,11 +529,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (_tabController.index == 2 &&
           !_tabController.indexIsChanging &&
           _cachedWeather != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => Next7DaysPage(weather: _cachedWeather!),
-          ),
+        Get.to(
+          () => Next7DaysPage(weather: _cachedWeather!),
+          transition: Transition.rightToLeft,
+          duration: Duration(milliseconds: 500),
         );
       }
     });
