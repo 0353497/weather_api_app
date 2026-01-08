@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,104 +59,144 @@ class _ChooseLocationPageState extends State<ChooseLocationPage> {
                       );
                     }
 
-                    return ListView.builder(
+                    return ReorderableListView.builder(
                       itemCount: savedLocations.length,
+                      onReorder: _onReorder,
+                      buildDefaultDragHandles: false,
                       itemBuilder: (context, index) {
                         final location = savedLocations[index];
-                        return Column(
-                          children: [
-                            SizedBox(height: 10),
-                            Container(
-                              height: 80,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                color: Colors.black.withAlpha(64),
+                        return Dismissible(
+                          key: ValueKey(
+                            '${location.latitude}_${location.longitude}',
+                          ),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: EdgeInsets.only(right: 20),
+                            margin: EdgeInsets.only(top: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              color: Colors.red,
+                            ),
+                            child: Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                          confirmDismiss: (direction) async {
+                            HapticFeedback.mediumImpact();
+                            return true;
+                          },
+                          onDismissed: (direction) {
+                            _deleteLocation(index);
+                          },
+                          child: _VerticalDragStartListener(
+                            index: index,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10.0,
                               ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(20),
-                                onTap: () => _selectLocation(location),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        spacing: 20,
-                                        children: [
-                                          ClipRRect(
-                                            clipBehavior: Clip.hardEdge,
-                                            borderRadius: BorderRadius.circular(
-                                              20,
+                              child: Container(
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: Colors.black.withAlpha(64),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () => _selectLocation(location),
+                                  onLongPress: () {
+                                    HapticFeedback.mediumImpact();
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Row(
+                                          spacing: 20,
+                                          children: [
+                                            ClipRRect(
+                                              clipBehavior: Clip.hardEdge,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              child: Image.network(
+                                                "https://flagsapi.com/${location.country_code}/flat/64.png",
+                                                height: 40,
+                                                width: 40,
+                                                fit: BoxFit.cover,
+                                                errorBuilder:
+                                                    (
+                                                      context,
+                                                      error,
+                                                      stackTrace,
+                                                    ) {
+                                                      return Container(
+                                                        height: 40,
+                                                        width: 40,
+                                                        color: Colors.grey,
+                                                      );
+                                                    },
+                                              ),
                                             ),
-                                            child: Image.network(
-                                              "https://flagsapi.com/${location.country_code}/flat/64.png",
-                                              height: 40,
-                                              width: 40,
-                                              fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Container(
-                                                      height: 40,
-                                                      width: 40,
-                                                      color: Colors.grey,
-                                                    );
-                                                  },
-                                            ),
-                                          ),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                location.name ?? "Onbekend",
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 16,
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  location.name ?? "Onbekend",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 16,
+                                                  ),
                                                 ),
-                                              ),
-                                              Text(
-                                                location.admin1 ?? "",
-                                                style: TextStyle(fontSize: 12),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                      FutureBuilder(
-                                        future:
-                                            WeatherService.getSmallWeatherOverView(
-                                              location.latitude,
-                                              location.longitude,
+                                                Text(
+                                                  location.admin1 ?? "",
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                        builder: (context, asyncSnapshot) {
-                                          if (asyncSnapshot.connectionState ==
-                                              ConnectionState.waiting) {
-                                            return CircularProgressIndicator();
-                                          }
-                                          if (!asyncSnapshot.hasData) {
-                                            return Icon(Icons.chevron_right);
-                                          }
-                                          return Row(
-                                            children: [
-                                              Text(
-                                                "${asyncSnapshot.data!.temperature_2m_max}°",
+                                          ],
+                                        ),
+                                        FutureBuilder(
+                                          future:
+                                              WeatherService.getSmallWeatherOverView(
+                                                location.latitude,
+                                                location.longitude,
                                               ),
-                                              Image.asset(
-                                                asyncSnapshot.data!.imagepath,
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      ),
-                                    ],
+                                          builder: (context, asyncSnapshot) {
+                                            if (asyncSnapshot.connectionState ==
+                                                ConnectionState.waiting) {
+                                              return CircularProgressIndicator();
+                                            }
+                                            if (!asyncSnapshot.hasData) {
+                                              return Icon(Icons.chevron_right);
+                                            }
+                                            return Row(
+                                              children: [
+                                                Text(
+                                                  "${asyncSnapshot.data!.temperature_2m_max}°",
+                                                ),
+                                                Image.asset(
+                                                  asyncSnapshot.data!.imagepath,
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         );
                       },
                     );
@@ -282,5 +324,72 @@ class _ChooseLocationPageState extends State<ChooseLocationPage> {
     controller.setCurrentLocation(location);
     if (!mounted) return;
     Navigator.of(context).pop();
+  }
+
+  Future<void> _deleteLocation(int index) async {
+    final deletedLocation = savedLocations[index];
+
+    setState(() {
+      savedLocations.removeAt(index);
+    });
+
+    await _saveSavedLocations();
+
+    final lastLocationJson = prefs.getString("lastLocation");
+    if (lastLocationJson != null) {
+      try {
+        final currentLocation = DataLocation.fromjson(
+          jsonDecode(lastLocationJson),
+        );
+
+        if (currentLocation.latitude == deletedLocation.latitude &&
+            currentLocation.longitude == deletedLocation.longitude) {
+          if (savedLocations.isNotEmpty) {
+            await prefs.setString(
+              "lastLocation",
+              jsonEncode(savedLocations[0].toJson()),
+            );
+            final controller = Get.find<LocationProvider>();
+            controller.setCurrentLocation(savedLocations[0]);
+          } else {
+            await prefs.remove("lastLocation");
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
+    HapticFeedback.mediumImpact();
+
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final item = savedLocations.removeAt(oldIndex);
+      savedLocations.insert(newIndex, item);
+    });
+
+    await _saveSavedLocations();
+  }
+
+  Future<void> _saveSavedLocations() async {
+    const savedLocationsKey = "savedLocations";
+    final List<String> locationStrings = savedLocations
+        .map((location) => jsonEncode(location.toJson()))
+        .toList();
+    await prefs.setStringList(savedLocationsKey, locationStrings);
+  }
+}
+
+class _VerticalDragStartListener extends ReorderableDragStartListener {
+  const _VerticalDragStartListener({
+    required super.child,
+    required super.index,
+  });
+
+  @override
+  MultiDragGestureRecognizer createRecognizer() {
+    return VerticalMultiDragGestureRecognizer(debugOwner: this);
   }
 }
