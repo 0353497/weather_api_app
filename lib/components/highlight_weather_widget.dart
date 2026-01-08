@@ -6,20 +6,27 @@ class HighlightWeatherWidget extends StatelessWidget {
     required this.imagePath,
     required this.title,
     required this.valueAndType,
+    this.hasBorder = true,
   });
   final String imagePath;
   final String title;
   final String valueAndType;
+  final bool hasBorder;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
         height: 140,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(width: 1, color: Colors.white.withAlpha(100)),
-        ),
+        decoration: hasBorder
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  width: 1,
+                  color: Colors.white.withAlpha(100),
+                ),
+              )
+            : null,
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Column(

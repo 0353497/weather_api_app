@@ -24,6 +24,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late ScrollController _todayScrollController;
   late ScrollController _tomorrowScrollController;
   late TabController _tabController;
+  Weather? _cachedWeather;
 
   void _initializeWeather() {
     final controller = Get.find<LocationProvider>();
@@ -191,6 +192,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       return Center(child: Text("no data"));
                     }
                     final Weather weather = snapshot.data!;
+                    _cachedWeather = weather;
                     int selectedDayIndex = _getSelectedDayIndex(weather);
                     List<int> todayHourlyIndices = _getTodayHourlyIndices(
                       weather,
@@ -273,6 +275,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 title: "Regenval",
                                 valueAndType:
                                     "${weather.daily.precipitation_sum[selectedDayIndex]} ${weather.daily_units.precipitation_sum}",
+                                hasBorder: true,
                               ),
                               HighlightWeatherWidget(
                                 imagePath: "assets/images/wind.png",
@@ -330,77 +333,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               weather.hourly.time[actualIndex],
                                             ).hour ==
                                             selecteDate.hour;
-                                        return Row(
-                                          children: [
-                                            SizedBox(width: 12),
-                                            InkWell(
-                                              onTap: () {
-                                                setState(() {
-                                                  selecteDate = DateTime.parse(
-                                                    weather
-                                                        .hourly
-                                                        .time[actualIndex],
-                                                  );
-                                                });
-                                              },
-                                              child: Container(
-                                                height: 160,
-                                                width: 80,
-                                                decoration: BoxDecoration(
-                                                  color: isSelectedTime
-                                                      ? Colors.black.withAlpha(
-                                                          190,
-                                                        )
-                                                      : Colors.black.withAlpha(
-                                                          64,
-                                                        ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                ),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    8.0,
-                                                  ),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .center,
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceEvenly,
-                                                    children: [
-                                                      Text(
-                                                        isNow
-                                                            ? "nu"
-                                                            : DateFormat(
-                                                                "HH:mm",
-                                                              ).format(
-                                                                DateTime.parse(
-                                                                  weather
-                                                                      .hourly
-                                                                      .time[actualIndex],
-                                                                ),
-                                                              ),
-                                                      ),
-                                                      Image.asset(
-                                                        WeatherCodeParser.getImageFromCode(
-                                                          weather
-                                                              .hourly
-                                                              .weathercode[actualIndex],
-                                                          weather
-                                                              .utc_offset_seconds,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        "${weather.hourly.temperature_2m[actualIndex].toInt()}°",
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                            SizedBox(width: 12),
-                                          ],
+                                        return hourListTile(
+                                          weather,
+                                          actualIndex,
+                                          isSelectedTime,
+                                          isNow,
                                         );
                                       },
                                     ),
@@ -507,6 +444,62 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  Row hourListTile(
+    Weather weather,
+    int actualIndex,
+    bool isSelectedTime,
+    bool isNow,
+  ) {
+    return Row(
+      children: [
+        SizedBox(width: 12),
+        InkWell(
+          onTap: () {
+            setState(() {
+              selecteDate = DateTime.parse(weather.hourly.time[actualIndex]);
+            });
+          },
+          child: Container(
+            height: 160,
+            width: 80,
+            decoration: BoxDecoration(
+              color: isSelectedTime
+                  ? Colors.black.withAlpha(190)
+                  : Colors.black.withAlpha(64),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Text(
+                    isNow
+                        ? "nu"
+                        : DateFormat("HH:mm").format(
+                            DateTime.parse(weather.hourly.time[actualIndex]),
+                          ),
+                  ),
+                  Image.asset(
+                    WeatherCodeParser.getImageFromCode(
+                      weather.hourly.weathercode[actualIndex],
+                      weather.utc_offset_seconds,
+                    ),
+                  ),
+                  Text(
+                    "${weather.hourly.temperature_2m[actualIndex].toInt()}°",
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: 12),
+      ],
+    );
+  }
+
   String selectedDateText() {
     if (selecteDate.hour == DateTime.now().hour) {
       return DateFormat("EEEE d MMMM").format(selecteDate);
@@ -533,10 +526,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   void _addTabListerer() {
     _tabController.addListener(() {
-      if (_tabController.index == 2) {
+      if (_tabController.index == 2 &&
+          !_tabController.indexIsChanging &&
+          _cachedWeather != null) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => Next7DaysPage()),
+          MaterialPageRoute(
+            builder: (_) => Next7DaysPage(weather: _cachedWeather!),
+          ),
         );
       }
     });
